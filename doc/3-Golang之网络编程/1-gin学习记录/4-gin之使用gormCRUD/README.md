@@ -59,7 +59,7 @@ db.NewRecord(user) // 创建`user`后返回`false`
 ```go
 type User struct {
   ID   int64
-  Name string `gorm:"default:'小王子'"`
+  Name string `gorm:"default:'小王子'"` //这个会改变create table的sql语句 中的defaut
   Age  int64
 }
 ```
