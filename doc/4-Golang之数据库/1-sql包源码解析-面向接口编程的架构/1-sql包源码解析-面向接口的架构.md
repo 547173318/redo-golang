@@ -144,6 +144,7 @@ func (db *DB) Ping() error {
 ## 4、面向接口编程
 #### 4-1 database/sql包
 * driver.go内容结构如下图
+
 ![](image/driver-go.png)
 * 可以看到，该文件里面全是接口，没有具体的实现，说明这是等待第三方来实现(如mysql、sqlServer)
 
