@@ -1,0 +1,22 @@
+{"level":"DEBUG","time":"2021-12-23T19:15:22.295+0800","caller":"main/main.go:37","msg":"zap init success"}
+{"level":"ERROR","time":"2021-12-23T19:15:22.297+0800","caller":"mysql/mysql.go:25","msg":"connect DB failed","error":"sql: unknown driver \"mysql\" (forgotten import?)"}
+{"level":"DEBUG","time":"2021-12-23T19:16:27.296+0800","caller":"main/main.go:37","msg":"zap init success"}
+{"level":"DEBUG","time":"2021-12-23T19:17:46.884+0800","caller":"web-app/main.go:36","msg":"zap init success"}
+{"level":"INFO","time":"2021-12-23T19:17:54.560+0800","caller":"web-app/main.go:76","msg":"Shutdown Server..."}
+{"level":"INFO","time":"2021-12-23T19:17:55.061+0800","caller":"web-app/main.go:85","msg":"Server exiting"}
+{"level":"DEBUG","time":"2021-12-23T19:19:04.756+0800","caller":"web-app/main.go:36","msg":"zap init success"}
+{"level":"INFO","time":"2021-12-23T19:19:11.308+0800","caller":"web-app/main.go:76","msg":"Shutdown Server..."}
+{"level":"INFO","time":"2021-12-23T19:19:11.809+0800","caller":"web-app/main.go:85","msg":"Server exiting"}
+{"level":"DEBUG","time":"2021-12-23T19:19:20.031+0800","caller":"web-app/main.go:36","msg":"zap init success"}
+{"level":"INFO","time":"2021-12-23T19:19:22.694+0800","caller":"web-app/main.go:76","msg":"Shutdown Server..."}
+{"level":"INFO","time":"2021-12-23T19:19:23.195+0800","caller":"web-app/main.go:85","msg":"Server exiting"}
+{"level":"DEBUG","time":"2021-12-23T19:23:24.001+0800","caller":"web-app/main.go:36","msg":"zap init success"}
+{"level":"INFO","time":"2021-12-23T19:23:59.154+0800","caller":"logger/logger.go:69","msg":"/","status":200,"method":"GET","path":"/","query":"","ip":"::1","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36","errors":"","cost":0}
+{"level":"INFO","time":"2021-12-23T19:23:59.222+0800","caller":"logger/logger.go:69","msg":"/favicon.ico","status":404,"method":"GET","path":"/favicon.ico","query":"","ip":"::1","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36","errors":"","cost":0}
+{"level":"DEBUG","time":"2021-12-23T19:24:26.074+0800","caller":"web-app/main.go:36","msg":"zap init success"}
+{"level":"INFO","time":"2021-12-23T19:24:36.502+0800","caller":"logger/logger.go:69","msg":"/","status":200,"method":"GET","path":"/","query":"","ip":"::1","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36","errors":"","cost":0}
+{"level":"INFO","time":"2021-12-23T19:24:58.680+0800","caller":"web-app/main.go:76","msg":"Shutdown Server..."}
+{"level":"INFO","time":"2021-12-23T19:24:59.181+0800","caller":"web-app/main.go:85","msg":"Server exiting"}
+{"level":"DEBUG","time":"2021-12-23T19:25:05.120+0800","caller":"web-app/main.go:36","msg":"zap init success"}
+{"level":"INFO","time":"2021-12-23T19:25:09.527+0800","caller":"web-app/main.go:76","msg":"Shutdown Server..."}
+{"level":"INFO","time":"2021-12-23T19:25:10.029+0800","caller":"web-app/main.go:85","msg":"Server exiting"}
