@@ -31,7 +31,8 @@
 * **5-2 sqlx使用指南**
   * [1-sqlx包实现CRUD-夯实基础](https://github.com/547173318/redo-golang/blob/main/doc/4-Golang%E4%B9%8B%E6%95%B0%E6%8D%AE%E5%BA%93/2-sqlx%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8D%97/1-sqlx%E5%8C%85%E5%AE%9E%E7%8E%B0CRUD-%E5%A4%AF%E5%AE%9E%E5%9F%BA%E7%A1%80.md)
   * [2-sqlxIn函数的使用-实现tips](https://github.com/547173318/redo-golang/blob/main/doc/4-Golang%E4%B9%8B%E6%95%B0%E6%8D%AE%E5%BA%93/2-sqlx%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8D%97/2-sqlxIn%E5%87%BD%E6%95%B0%E7%9A%84%E4%BD%BF%E7%94%A8-%E5%AE%9E%E7%8E%B0tips.md)
-
+## 6.Golang之浅析常用标准库
+* [命令行工具-flag包](https://github.com/547173318/redo-golang/blob/main/doc/5-Golang%E4%B9%8B%E5%B8%B8%E7%94%A8%E6%A0%87%E5%87%86%E5%BA%93/flag%E6%A0%87%E5%87%86%E5%BA%93%E4%BD%BF%E7%94%A8%E8%A7%A3%E6%9E%90.md)
 ## 6.Golang之面试题总结
 
 
