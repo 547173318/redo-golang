@@ -7,6 +7,42 @@ import (
 	"github.com/spf13/viper"
 )
 
+// 全局变量
+var Conf = new(AppConfig)
+
+type AppConfig struct {
+	Name         string `mapstructure:"name"`
+	Mode         string `mapstructure:"mode"`
+	Version      string `mapstructure:"version"`
+	Port         int    `mapstructure:"port"`
+	*LogConfig   `mapstructure:"log"`
+	*MysqlConfig `mapstructure:"mysql"`
+	*RedisConfig `mapstructure:"redis"`
+}
+type LogConfig struct {
+	Level      string `mapstructure:"level"`
+	FileName   string `mapstructure:"filename"`
+	MaxSize    int    `mapstructure:"max_size"`
+	MinAge     int    `mapstructure:"min_age"`
+	MaxBackups int    `mapstructure:"max_backups"`
+}
+type MysqlConfig struct {
+	Host         string `mapstructure:"host"`
+	User         string `mapstructure:"user"`
+	Password     string `mapstructure:"password"`
+	DbName       string `mapstructure:"db_name"`
+	Port         int    `mapstructure:"port"`
+	MaxOpenConns int    `mapstructure:"max_open_conns"`
+	MaxIdleConns int    `mapstructure:"max_idle_conns"`
+}
+type RedisConfig struct {
+	Host     string `mapstructure:"host"`
+	Password string `mapstructure:"password"`
+	Port     int    `mapstructure:"port"`
+	DB       int    `mapstructure:"db"`
+	PoolSize int    `mapstructure:"pool_size"`
+}
+
 func Init(fileName string) (err error) {
 	// 方式一，相对路径/绝对路径
 	// 其中相对路径是指相对于.exe文件
@@ -31,10 +67,20 @@ func Init(fileName string) (err error) {
 	if err != nil {            // 读取配置信息失败
 		panic(fmt.Errorf("Fatal error config file: %s \n", err))
 	}
+
+	// 将配置信息反序列化到全局变量中
+	if err := viper.Unmarshal(Conf); err != nil {
+		fmt.Printf("viper.Unmarshal failed,err:%v\n", err)
+	}
+
 	// 监控配置文件变化
 	viper.WatchConfig()
 	viper.OnConfigChange(func(in fsnotify.Event) {
 		fmt.Printf("配置文件发生修改")
+		// 更新全局变量中
+		if err := viper.Unmarshal(Conf); err != nil {
+			fmt.Printf("viper.Unmarshal failed,err:%v\n", err)
+		}
 	})
 	return
 }

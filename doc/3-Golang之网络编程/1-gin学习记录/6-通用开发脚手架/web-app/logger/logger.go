@@ -8,20 +8,29 @@ import (
 	"runtime/debug"
 	"strings"
 	"time"
+	"web-app/settings"
+
+	"github.com/spf13/viper"
 
 	"github.com/gin-gonic/gin"
 	"github.com/natefinch/lumberjack"
-	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-func Init() (err error) {
-	writeSyncer := getLogWriter(viper.GetString("log.filename"),
-		viper.GetInt("log.max_size"),
-		viper.GetInt("max_backups"),
-		viper.GetInt("log.max_age"),
+func Init(cfg *settings.LogConfig) (err error) {
+	//writeSyncer := getLogWriter(viper.GetString("log.filename"),
+	//	viper.GetInt("log.max_size"),
+	//	viper.GetInt("max_backups"),
+	//	viper.GetInt("log.max_age"),
+	//)
+	writeSyncer := getLogWriter(
+		cfg.FileName,
+		cfg.MaxSize,
+		cfg.MaxBackups,
+		cfg.MinAge,
 	)
+
 	encoder := getEncoder()
 	var l = new(zapcore.Level)
 	err = l.UnmarshalText([]byte(viper.GetString("log.level")))

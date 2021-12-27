@@ -38,3 +38,6 @@
 {"level":"DEBUG","time":"2021-12-27T19:45:26.846+0800","caller":"web-app/main.go:45","msg":"zap init success"}
 {"level":"INFO","time":"2021-12-27T19:52:34.137+0800","caller":"web-app/main.go:87","msg":"Shutdown Server..."}
 {"level":"INFO","time":"2021-12-27T19:52:34.639+0800","caller":"web-app/main.go:96","msg":"Server exiting"}
+{"level":"DEBUG","time":"2021-12-27T21:08:45.393+0800","caller":"web-app/main.go:45","msg":"zap init success"}
+{"level":"INFO","time":"2021-12-27T21:09:11.991+0800","caller":"web-app/main.go:87","msg":"Shutdown Server..."}
+{"level":"INFO","time":"2021-12-27T21:09:12.492+0800","caller":"web-app/main.go:96","msg":"Server exiting"}
