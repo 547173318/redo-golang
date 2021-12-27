@@ -22,8 +22,17 @@ import (
 // Go Web 开发较通用的脚手架
 
 func main() {
+	if len(os.Args) < 2 { //命令行arg[0] 是.exe文件名
+		fmt.Printf("命令行参数数量小于2")
+		return
+	}
+
+	for index, arg := range os.Args {
+		fmt.Printf("args[%d]=%v\n", index, arg)
+	}
+
 	// 加载配置文件
-	if err := settings.Init(); err != nil {
+	if err := settings.Init(os.Args[1]); err != nil {
 		fmt.Printf("init settings failed,err:%v\n", err)
 		return
 	}

@@ -20,3 +20,21 @@
 {"level":"DEBUG","time":"2021-12-23T19:25:05.120+0800","caller":"web-app/main.go:36","msg":"zap init success"}
 {"level":"INFO","time":"2021-12-23T19:25:09.527+0800","caller":"web-app/main.go:76","msg":"Shutdown Server..."}
 {"level":"INFO","time":"2021-12-23T19:25:10.029+0800","caller":"web-app/main.go:85","msg":"Server exiting"}
+{"level":"DEBUG","time":"2021-12-27T19:34:30.394+0800","caller":"web-app/main.go:36","msg":"zap init success"}
+{"level":"INFO","time":"2021-12-27T19:34:54.198+0800","caller":"web-app/main.go:78","msg":"Shutdown Server..."}
+{"level":"INFO","time":"2021-12-27T19:34:54.699+0800","caller":"web-app/main.go:87","msg":"Server exiting"}
+{"level":"DEBUG","time":"2021-12-27T19:35:39.461+0800","caller":"web-app/main.go:36","msg":"zap init success"}
+{"level":"INFO","time":"2021-12-27T19:35:58.660+0800","caller":"web-app/main.go:78","msg":"Shutdown Server..."}
+{"level":"INFO","time":"2021-12-27T19:35:59.160+0800","caller":"web-app/main.go:87","msg":"Server exiting"}
+{"level":"DEBUG","time":"2021-12-27T19:36:11.922+0800","caller":"web-app/main.go:36","msg":"zap init success"}
+{"level":"INFO","time":"2021-12-27T19:36:20.743+0800","caller":"web-app/main.go:78","msg":"Shutdown Server..."}
+{"level":"INFO","time":"2021-12-27T19:36:21.243+0800","caller":"web-app/main.go:87","msg":"Server exiting"}
+{"level":"DEBUG","time":"2021-12-27T19:36:52.653+0800","caller":"web-app/main.go:36","msg":"zap init success"}
+{"level":"INFO","time":"2021-12-27T19:36:58.278+0800","caller":"web-app/main.go:78","msg":"Shutdown Server..."}
+{"level":"INFO","time":"2021-12-27T19:36:58.778+0800","caller":"web-app/main.go:87","msg":"Server exiting"}
+{"level":"DEBUG","time":"2021-12-27T19:37:45.268+0800","caller":"web-app/main.go:36","msg":"zap init success"}
+{"level":"INFO","time":"2021-12-27T19:44:36.033+0800","caller":"web-app/main.go:78","msg":"Shutdown Server..."}
+{"level":"INFO","time":"2021-12-27T19:44:36.535+0800","caller":"web-app/main.go:87","msg":"Server exiting"}
+{"level":"DEBUG","time":"2021-12-27T19:45:26.846+0800","caller":"web-app/main.go:45","msg":"zap init success"}
+{"level":"INFO","time":"2021-12-27T19:52:34.137+0800","caller":"web-app/main.go:87","msg":"Shutdown Server..."}
+{"level":"INFO","time":"2021-12-27T19:52:34.639+0800","caller":"web-app/main.go:96","msg":"Server exiting"}
