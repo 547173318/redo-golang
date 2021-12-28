@@ -73,6 +73,8 @@ func Init(fileName string) (err error) {
 		fmt.Printf("viper.Unmarshal failed,err:%v\n", err)
 	}
 
+	fmt.Printf("kkk:%v\n", Conf.Port)
+
 	// 监控配置文件变化
 	viper.WatchConfig()
 	viper.OnConfigChange(func(in fsnotify.Event) {

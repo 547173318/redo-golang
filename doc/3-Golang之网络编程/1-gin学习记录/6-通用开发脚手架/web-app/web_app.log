@@ -41,3 +41,24 @@
 {"level":"DEBUG","time":"2021-12-27T21:08:45.393+0800","caller":"web-app/main.go:45","msg":"zap init success"}
 {"level":"INFO","time":"2021-12-27T21:09:11.991+0800","caller":"web-app/main.go:87","msg":"Shutdown Server..."}
 {"level":"INFO","time":"2021-12-27T21:09:12.492+0800","caller":"web-app/main.go:96","msg":"Server exiting"}
+{"level":"DEBUG","time":"2021-12-28T13:31:39.327+0800","caller":"web-app/main.go:45","msg":"zap init success"}
+{"level":"INFO","time":"2021-12-28T14:20:30.714+0800","caller":"web-app/main.go:87","msg":"Shutdown Server..."}
+{"level":"INFO","time":"2021-12-28T14:20:31.218+0800","caller":"web-app/main.go:96","msg":"Server exiting"}
+{"level":"DEBUG","time":"2021-12-28T14:20:55.675+0800","caller":"web-app/main.go:45","msg":"zap init success"}
+{"level":"INFO","time":"2021-12-28T14:21:44.757+0800","caller":"web-app/main.go:87","msg":"Shutdown Server..."}
+{"level":"INFO","time":"2021-12-28T14:21:45.258+0800","caller":"web-app/main.go:96","msg":"Server exiting"}
+{"level":"DEBUG","time":"2021-12-28T14:22:14.817+0800","caller":"web-app/main.go:45","msg":"zap init success"}
+{"level":"INFO","time":"2021-12-28T14:23:36.810+0800","caller":"web-app/main.go:87","msg":"Shutdown Server..."}
+{"level":"INFO","time":"2021-12-28T14:23:37.312+0800","caller":"web-app/main.go:96","msg":"Server exiting"}
+{"level":"DEBUG","time":"2021-12-28T14:23:46.330+0800","caller":"web-app/main.go:45","msg":"zap init success"}
+{"level":"INFO","time":"2021-12-28T14:24:56.426+0800","caller":"web-app/main.go:87","msg":"Shutdown Server..."}
+{"level":"INFO","time":"2021-12-28T14:24:56.927+0800","caller":"web-app/main.go:96","msg":"Server exiting"}
+{"level":"DEBUG","time":"2021-12-28T14:25:06.439+0800","caller":"web-app/main.go:45","msg":"zap init success"}
+{"level":"INFO","time":"2021-12-28T14:25:46.500+0800","caller":"web-app/main.go:87","msg":"Shutdown Server..."}
+{"level":"INFO","time":"2021-12-28T14:25:47.002+0800","caller":"web-app/main.go:96","msg":"Server exiting"}
+{"level":"DEBUG","time":"2021-12-28T14:41:31.799+0800","caller":"web-app/main.go:45","msg":"zap init success"}
+{"level":"INFO","time":"2021-12-28T14:43:44.656+0800","caller":"web-app/main.go:87","msg":"Shutdown Server..."}
+{"level":"INFO","time":"2021-12-28T14:43:45.156+0800","caller":"web-app/main.go:96","msg":"Server exiting"}
+{"level":"DEBUG","time":"2021-12-28T14:43:53.855+0800","caller":"web-app/main.go:45","msg":"zap init success"}
+{"level":"INFO","time":"2021-12-28T14:43:56.571+0800","caller":"logger/logger.go:78","msg":"/hello","status":200,"method":"GET","path":"/hello","query":"","ip":"::1","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36","errors":"","cost":0}
+{"level":"INFO","time":"2021-12-28T14:43:56.659+0800","caller":"logger/logger.go:78","msg":"/favicon.ico","status":404,"method":"GET","path":"/favicon.ico","query":"","ip":"::1","user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36","errors":"","cost":0}

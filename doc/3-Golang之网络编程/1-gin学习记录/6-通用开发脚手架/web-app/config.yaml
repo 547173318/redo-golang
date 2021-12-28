@@ -1,7 +1,7 @@
-app:
-  name: "web_app"
-  mode: "dev"
-  port: 8081
+name: "web_app"
+mode: "dev"
+port: 8081
+version: "v.0.0.1"
 
 log:
   level: "debug"
@@ -9,6 +9,7 @@ log:
   max_size: 200
   min_age: 30
   max_backups: 7
+
 mysql:
   host: "127.9.9.1"
   port: 3306
@@ -17,6 +18,7 @@ mysql:
   dbname: "web_app"
   mysql.max_open_conns: 200
   mysql.max_idle_conns: 50
+
 redis:
   host: "127.0.0.1"
   port:

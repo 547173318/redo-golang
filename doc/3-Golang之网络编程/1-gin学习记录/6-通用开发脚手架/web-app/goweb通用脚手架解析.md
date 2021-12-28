@@ -169,6 +169,11 @@ func Init() (err error) {
 }
 
 ```
+* 千万注意`config.yaml`文件里面的层级关系（如是否有app:?）,相应的启动服务是调用port如下`app.port`
+```
+Addr:    fmt.Sprintf(":%d", viper.GetInt("app.port")),
+```
+
 * 初始化配置文件（方式二）
 ```
 package settings
@@ -250,7 +255,7 @@ func Init(fileName string) (err error) {
 	viper.WatchConfig()
 	viper.OnConfigChange(func(in fsnotify.Event) {
 		fmt.Printf("配置文件发生修改")
-		// 更新全局变量中
+		// 更新全局变量中，但是还是无法实现热更新，后面的逻辑要自己补充
 		if err := viper.Unmarshal(Conf); err != nil {
 			fmt.Printf("viper.Unmarshal failed,err:%v\n", err)
 		}
@@ -259,6 +264,8 @@ func Init(fileName string) (err error) {
 }
 
 ```
+* 首先注意，方式二如果使用方式一的`config.yaml`会导致无法拿到Name，Port，Mode，Version，但是却可以拿到*Mysql
+，*Log，*Redis，因为他们的层级不同
 * 这样只要将全局变量Conf暴露出去，其他模块（log，mysql，redis）就可以不用对viper进行import了，其他模块就可以这样写：
 ```
 func Init(cfg *settings.LogConfig) (err error) {
