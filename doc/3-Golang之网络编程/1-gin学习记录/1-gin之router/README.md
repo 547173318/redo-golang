@@ -653,7 +653,8 @@ func main() {
 
 1. 如果是 `GET` 请求，只使用 `Form` 绑定引擎（`query`）。
 2. 如果是 `POST` 请求，首先检查 `content-type` 是否为 `JSON` 或 `XML`，然后再使用 `Form`（`form-data`）。
-
+3. 注意，每次绑定的时候，用户自定义的结构体要有tag（如form、json等等）
+4. 而`ShouldBindJSON`只会应用于JSON格式的数据
 ## 文件上传
 
 ### 单个文件上传
