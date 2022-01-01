@@ -19,7 +19,7 @@
 * **3-2 gin项目**
   * [项目1-todo-list仓库地址](https://github.com/547173318/todo-list)
 * **3-3 网络信息安全**
-  * [CSRF攻击的自我理解](https://github.com/547173318/redo-golang/blob/main/doc/3-Golang%E4%B9%8B%E7%BD%91%E7%BB%9C%E7%BC%96%E7%A8%8B/3-%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8/CSRF.md)
+  * [CSRF与click hijacking的自我理解](https://github.com/547173318/redo-golang/blob/main/doc/3-Golang%E4%B9%8B%E7%BD%91%E7%BB%9C%E7%BC%96%E7%A8%8B/3-%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8/CSRF%E4%B8%8Eclick%20hijacking.md)
   * [XSS回溯网站攻防历史](https://github.com/547173318/redo-golang/blob/main/doc/3-Golang%E4%B9%8B%E7%BD%91%E7%BB%9C%E7%BC%96%E7%A8%8B/3-%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8/XSS.md)
   * [HTTPS与非对称加密原理](https://github.com/547173318/redo-golang/blob/main/doc/3-Golang%E4%B9%8B%E7%BD%91%E7%BB%9C%E7%BC%96%E7%A8%8B/3-%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8/https%E4%B8%8E%E9%9D%9E%E5%AF%B9%E7%A7%B0%E5%8A%A0%E5%AF%86.md)
 
