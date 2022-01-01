@@ -86,3 +86,124 @@
 
 * 在合法的网站上提交请求的时候，带的参数如上；因为攻击者无法获得每个用户每次的token值，所以攻击失败。
 * **这就使得，黑客发给用户的html于服务器的html不同了，浏览器可以标识，到底是不是从官方给的html表单来发送请求的，就算黑客抄袭代码，token值也与用户不一样了**
+  
+## 5、可能的破解方法
+#### 5-1 方法介绍
+* 在攻击者网站中，构建一个网页，这个网页中有一个iframe框，这个iframe中有zoobar网站的transfer页面，并且作为用户提交transfer请求的target。虽然在外部网页的csrf攻击可能不成功，因为构造不出来token。但是在iframe中可以诱使用户去点击提交，因为这个iframe中的transfer就是网站本身的页面，因此，肯定可以成功。也因此，CSRF防御不成功，并且可以使用CSS的方式，将Iframe的内容不可见，诱使用户点击的招式也和CSRF差不多。
+
+#### 5-2 该方案的分析
+* 最明显的，CSRF攻击，使用隐藏token的方法是可以防御的；这个明显防御不了；CSRF不需要使用iframe，这个需要；CSRF可以更隐蔽一些，一旦用户访问页面，攻击就成功了；这个攻击可以做到这一点吗？如下面所示
+
+```
+// 可以修改myIFrame
+<iframe id='myIFrame' src = 'x1.html' onload="fun1()"></iframe>
+
+<p id='2'>I am 2.html.</p>
+<p id='p'>hello world.</p>
+
+<script>
+function fun1(){
+        var myframe = document.getElementById('myIFrame');
+
+        (window.document.getElementById("myIFrame").contentWindow.document.getElementById('p').style.display="none");
+}
+</script>
+
+
+// 不可以修改myIFrame2
+<iframe id='myIFrame2' src = 'http://handhw.site.com/x1.html' onload="fun2()"></iframe>
+
+<p id='2'>I am 2.html.</p>
+<p id='p'>hello world.</p>
+
+<script>
+function fun2(){
+        var myframe = document.getElementById('myIFrame2');
+        (window.document.getElementById("myIFrame2").contentWindow.document.getElementById('p').style.display="none");
+}
+</script>
+```
+* 这个是什么原因呢？很明显是SOP。如果在iframe中引用了其他来源的页面，当前网站的JS不能控制iframe中的元素。所以，现在的问题是，如果要把iframe中的页面隐身，那么所有的内容都隐身了，连button都隐身了；如果不能隐身，用户也不会傻到自己去攻击自己。所以，以上的思路看起来好像是没有什么用的。
+
+* 除非发生什么情况呢？就是虽然用户看不到这个按钮，但是点了这个按钮之后，还是有反应的；那用户为什么会去点一个看不见的按钮呢？那就需要再设计一下。实际上，这是很好的一个思路，基本上它就是今天要介绍的点击劫持（click hijacking）的基本原理了。
+
+## 6、点击劫持
+
+#### 6-1 前言
+* 点击劫持（click hijacking）也称为 UI 覆盖攻击。它通过一些内容（如游戏）误导被攻击者点击，虽然被攻击者点击的是他所看到的网页，但其实所点击的是另一个置于原网页上面的透明页面。
+
+* 本质上，这个攻击页面包括两层，用户看到的，以为自己正在操作的实际上是在下层，真正操作的是上面的透明的一层。而因为它是透明的，真正的意图是由攻击者在控制。
+
+#### 6-2 使用到的技术
+
+* z-index
+```
+<!DOCTYPE html>
+<html>
+<head>
+<style type="text/css">
+#img1
+{
+position:absolute;
+left:0px;
+top:0px;
+z-index:-1
+}
+</style>
+<script>
+function changeStackOrder()
+{
+document.getElementById("img1").style.zIndex=1;
+}
+</script>
+</head>
+<body>
+
+<h1>This is a Heading</h1>
+
+<img id="img1" src="bulbon.gif" width="100" height="180">
+
+<input type="button" onclick="changeStackOrder()" value="Change stack order">
+
+<p>Default z-index is 0. Z-index -1 has lower priority.</p>
+
+</body>
+</html>
+```
+* 透明化
+```
+opacity:0 
+visibility:hidden
+display:none
+```
+* 理解透明化实现的不同
+  * 我们想象一下，一个人Bob存在于宇宙中，他坐在一把椅子上，如果你拍一下他，他会有反应。那我们网页上的正常的内容，就类似于Bob。在正常的网页流中，一个元素是在DOM中的，它是可见的，它占据文档流中的一定的位置，然后如果点击它（有onclick的动作属性），则会做出反应。
+  * 如果我们使用opacity:0使得Bob隐形，那么Bob像穿了隐身衣，依然存在于宇宙中，他还坐在椅子上，如果你拍一下他，他自然也还是有反应的。
+  * 如果我们使用visibility:hidden使得Bob隐形，那么Bob依然存在于宇宙中，他还坐在椅子上，但是如果你拍一下他，他没有反应。
+  * 如果我们使用display:none使得Bob隐形，那么Bob依然存在于宇宙中，但是他和他的椅子已经不在原地了，当然，也没办法去拍他了。
+
+## 7、点击劫持的防御（早期）
+#### 7-1 前言
+* 点击劫持攻击需要首先将目标网站载入到恶意网站中，使用 iframe 载入网页是最有效的方法。所以，自然而言，第一想到的就是提出 Frame Busting 代码，使用 JavaScript 脚本阻止恶意网站载入网页。如果检测到网页被非法网页载入，就执行自动跳转功能。不过，效果有点不尽人意。我们来看几个例子。
+
+```
+// 自己的网站不是最外层，就跳出iframe
+if  (top != self)
+    top.location.href = location.href
+```
+* 看一下沃尔玛的代码：
+![](./点击劫持-沃尔玛.png)
+
+* 写成这样主要是因为完全禁止页面被frame也不太可行，有可能是合法的网站需要frame，所以多了一个检查。代码这样写，问题就比较多了,这种公共的大问题，应该由浏览器厂商来解决
+
+## 8、现代解决方案
+#### 8-1 前言
+* 从以上的例子中可以看出，使用JS代码来防御点击劫持并不是容易的事情。所以，后来产生了新的方式防御。直接修改浏览器实现，**在服务器端进行防御**。
+
+#### 8-2 实现原理
+> response由服务端进行设置，浏览器进行判断，是否展示iframe
+* 服务器端防御点击劫持漏洞的思想是结合浏览器的安全机制进行防御，X-FRAME-OPTIONS 机制在微软发布新一代的浏览器Internet Explorer 8.0中首次提出。该机制开始有两个选项：DENY 和 SAMEORIGIN。
+  * DENY表示任何网页都不能使用 iframe 载入该网页
+  * SAMEORIGIN表示符合同源策略的网页可以使用 iframe载入该网页
+  * 后来又增加了第三个选项：ALLOW-FROM uri，表示该页面可以在指定来源的 frame 中展示。
+* 如果浏览器使用了这个安全机制，在网站发现可疑行为时，会提示用户正在浏览网页存在安全隐患，并建议用户在新窗口中打开。这样攻击者就无法通过 iframe 隐藏目标的网页。
