@@ -28,6 +28,7 @@
   * [HTTPS与非对称加密原理](https://github.com/547173318/redo-golang/blob/main/doc/3-Golang%E4%B9%8B%E7%BD%91%E7%BB%9C%E7%BC%96%E7%A8%8B/3-%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8/https%E4%B8%8E%E9%9D%9E%E5%AF%B9%E7%A7%B0%E5%8A%A0%E5%AF%86.md)
 
 ## 4.Golang之gmp源码分析
+[1-GMP模型源码解析](https://github.com/547173318/redo-golang/blob/main/doc/2-Golang%E4%B9%8B%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B/2.2-GMP%E6%A8%A1%E5%9E%8B.md)
 
 ## 5.Golang之数据库交互
 * **5-1 sql包源码解析-面向接口编程的架构**
