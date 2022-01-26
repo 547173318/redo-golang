@@ -23,7 +23,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, callergp *g, callerpc uintpt
     if newg == nil {        
        // 初始化g stack大小
         newg = malg(_StackMin)
-        casgstatus(newg, _Gidle, _Gdead)
+        casgstatus(newg, _Gidle, _Gdead) // 
         allgadd(newg)
     }    
     // 以下省略}
@@ -88,7 +88,7 @@ func malg(stacksize int32) *g {
   * 【3】运行中(_Grunning): 表示M正在运行这个G, 这时候M会拥有一个P
   * 【4】系统调用中(_Gsyscall): 表示M正在运行这个G发起的系统调用, 这时候M并不拥有P
   * 【5】等待中(_Gwaiting): 表示G在等待某些条件完成, 这时候G不在运行也不在运行队列中(可能在channel的等待队列中)
-  * 【6】已中止(_Gdead): 表示G未被使用, 可能已执行完毕(并在freelist中等待下次复用)
+  * 【6】已中止(_Gdead): 表示G未被使用, 可能已执行完毕(并在freelist中等待下次复用),或者刚刚初始化完成，但是未被使用
   * 【7】栈复制中(_Gcopystack): 表示G正在获取一个新的栈空间并把原来的内容复制过去(用于防止GC扫描)
 M的状态
 * 值得一提的是进入死亡状态的G是可以被重新初始化并使用的，他们会被放入本地P或者调度器的自由G列表
@@ -219,7 +219,7 @@ var  allm       *m  //全局M列表
 * 什么时候创建新的M？
     * 当M因为系统调用而阻塞的时候，系统会把M和与之关联的P分离开来，这时，如果这个P的可运行队列中还有未被运行的G，那么系统会找到一个空闲的M或者创建一个新的M，并与该P关联以满足这些G的运行需要(hand off)，根据spinning决定是否创建
 * M并没有像G和P一样的状态标记, 但可以认为一个M有以下的状态:
-    * 【1】自旋中(spinning): M正在从运行队列获取G, 这时候M会拥有一个P
+    * 【1】自旋中(spinning): M正在从运行队列获取G, 这时候M会拥有一个P，**（理解成马上有一M要运行了）**
     * 【2】执行go代码中: M正在执行go代码, 这时候M会拥有一个P
     * 【3】执行原生代码中: M正在执行原生代码或者阻塞的syscall, 这时M并不拥有P（M不需要cpu提供服务）
     * 【4】休眠中: M发现无待运行的G时会进入休眠, 并添加到空闲M链表中, 这时M并不拥有P
@@ -477,8 +477,69 @@ func (pp *p) destroy() {
 * 为什么P的默认数量是CPU的总核心数？
     * 为了尽可能提高性能，保证n核机器上同时又n个线程**并行**运行，提高CPU利用率。
 
+## 2、关键概念 
+#### 2-1 P 队列
+* P有两种队列：本地队列和全局队列
+* 本地队列： 当前P的队列，本地队列是Lock-Free，没有数据竞争问题，无需加锁处理，可以提升处理速度
+* 全局队列：全局队列为了保证**多个P之间任务的平衡**。所有M共享P全局队列，为保证数据竞争问题，需要加锁处理。相比本地队列处理速度要低于全局队列。
 
-## 2、GMP之外的schedt源码实现
+#### 2-2 上线文切换
+* 简单理解为当时的环境即可，环境可以包括当时程序状态以及变量状态。例如线程切换的时候在内核会发生上下文切换，这里的上下文就包括了当时寄存器的值，把寄存器的值保存起来，等下次该线程又得到cpu时间的时候再恢复寄存器的值，这样线程才能正确运行。
+
+* 对于代码中某个值说，上下文是指这个值所在的局部(全局)作用域对象。相对于进程而言，上下文就是进程执行时的环境，具体来说就是各个变量和数据，包括所有的寄存器变量、进程打开的文件、内存(堆栈)信息等。
+
+#### 2-3 线程清理（用户级别的goroutine清理）
+* Goroutine被调度执行必须保证P/M进行绑定，所以线程清理只需要让当前的M将P释放就可以实现线程的清理。什么时候P会释放，保证其它G可以被执行。P被释放主要有两种情况。
+    * 主动释放：最典型的例子是，当执行G任务时有系统调用，当发生系统调用时M会处于Block状态。调度器会设置一个超时时间，当超时时会将P释放。
+
+    * 被动释放：如果发生系统调用，有一个专门监控程序，进行扫描当前处于阻塞的P/M组合。当超过系统程序设置的超时时间，会自动将P资源抢走。去执行队列的其它G任务。
+    > 上面两种都是hand off机制：M把P让出去
+
+#### 2-4 关于hand off
+* **hand off**：当 M 执行某一个 G 时候如果发生了`syscall`或则其余阻塞操作，M 会阻塞，如果当前有一些G 执行，`runtime`会把这个线程 M 从 P 中摘除 (`detach`)，然后再创建一个新的操作系统的线程 (如果有空闲的线程可用就复用空闲线程) 来服务于这个P
+* 当 M 系统调用结束时候，这个G会尝试获取一个空闲的P执行，并放入到这 P的本地队列
+  * 【1】如果顺利，**G此时是用拥有与之锁定的M的**，调用对应的M运行即可
+  * 【2】如果获取不到 P，调用`dropg`函数，那么这个线程M变成休眠状态，加入到空闲线程中，然后这个G会被放入全局队列中
+> 后面的schedul()调度中会详细讲到
+#### 2-5 空闲M链表（有待深入理解）
+* 当M发现无待运行的G时会进入休眠（如上面提到的没有空闲的P，自然也就没有M的用武之地了）, 并添加到**调度器空闲M链表**中, 空闲M链表保存在全局变量sched.
+* 进入休眠的M会等待一个信号量(m.park), 唤醒休眠的M会使用这个信号量
+* **go需要保证有足够的M可以运行G, 是通过这样的机制实现的:**
+    * 【1】入队待运行的G后, 如果当前无自旋的M但是有空闲的P说明一定缺少M了, 就唤醒或者新建一个M
+    * 【2】当M离开自旋状态，并准备运行出队的G时, 如果当前无自旋的M但是有空闲的P，说明一定缺少M了, 就唤醒或者新建一个M
+    * 【3】当M离开自旋状态，并准备休眠时, 会在离开自旋状态后再次检查所有运行队列, 如果有待运行的G则重新进入自旋状态
+* 因为"入队待运行的G"和"M离开自旋状态"会同时进行, go会使用这样的检查顺序:
+    * 入队待运行的G => 内存屏障 => 检查当前自旋的M数量 => 唤醒或者新建一个M
+    * 减少当前自旋的M数量 => 内存屏障 => 检查所有运行队列是否有待运行的G => 休眠
+> 这样可以保证不会出现待运行的G入队了, 也有空闲的资源P, 但无M去执行的情况.
+#### 2-6 栈扩张
+
+* 因为go中的协程是stackful coroutine, 每一个goroutine都需要有自己的栈空间,栈空间的内容在goroutine休眠时需要保留, 待休眠完成后恢复(这时整个调用树都是完整的).
+* 这样就引出了一个问题, goroutine可能会同时存在很多个, 如果每一个goroutine都预先分配一个**足够**的栈空间那么go就会使用过多的内存.
+* 为了避免这个问题, go在一开始只为goroutine分配一个很小的栈空间, 它的大小在当前版本是2K，当函数发现栈空间不足时, 会申请一块新的栈空间并把原来的栈内容复制过去.
+
+* 会检查比较rsp减去一定值以后是否比g.stackguard0小(栈是高地址到低地址，**减完之后结果小说明空间不够了**，要更加大的空间), 如果小于等于则需要调到下面调用`morestack_noctxt`函数(该函数也可用于判断抢占)
+* 具体说来
+    * `morestack_noctxt`函数清空`rdx`寄存器并调用`morestack`函数.
+    * `morestack`函数会保存G的状态到`g.sched`, **切换到g0和g0的栈空间**, 然后调用`newstack`函数，申请更大的空间
+
+#### 2-7 TLS
+* TLS的全称是Thread-local storage, 代表每个线程的中的本地数据.
+* 例如标准c中的errno就是一个典型的TLS变量, 每个线程都有一个独自的errno, 写入它不会干扰到其他线程中的值.
+* **go在实现协程时非常依赖TLS机制, 会用于获取系统线程中当前的G和G所属的M的实例.**
+* 因为go并不使用glibc, 操作TLS会使用系统原生的接口, 以linux x64为例,go在**新建M**时会调用`arch_prctl`这个syscall设置`FS`寄存器的值为`M.tls`的地址
+* 使得**运行中每个M的FS寄存器都会指向它们对应的M实例的tls**，linux内核调度线程时FS寄存器会跟着线程一起切换
+* 这样go代码只需要访问FS寄存器就可以存取线程本地的数据
+#### 4-8 写屏障(Write Barrier)
+* 因为go支持并行GC, GC的扫描和go代码可以同时运行, 这样带来的问题是GC扫描的过程中go代码有可能改变了对象的依赖树,例如开始扫描时发现根对象A和B, B拥有C的指针, GC先扫描A, 然后B把C的指针交给A, GC再扫描B, 这时C就不会被扫描到
+* 为了避免这个问题, go在GC的**标记阶段**会启用写屏障(Write Barrier)
+* 启用了写屏障(`Write Barrier`)后, 当B把C的指针交给A时, GC会认为在这一轮的扫描中C的指针是存活的,即使A可能会在稍后丢掉C, 那么C就在下一轮回收
+* 写屏障只针对指针启用, 而且只在GC的标记阶段启用, 平时会直接把值写入到目标地址:
+> 关于写屏障的详细将在下一篇(GC篇)分析.
+
+
+
+## 3、GMP之外的schedt源码实现
 * schedt，可以看做是一个全局的调度者
 ```
 type schedt struct {
@@ -573,7 +634,7 @@ func schedinit() {
 }
 ```
 
-## 3、 go func()的执行过程（融会贯通）
+## 4、go func()的执行过程（融会贯通）
 * 在go语句执行中，编译器会将go语句转化为对newproc的调用，这会创建一个新的G
 ```
 func newproc(siz int32, fn *funcval) {
@@ -599,7 +660,6 @@ func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerp
     // 调用getg获取当前的g, 会编译为读取FS寄存器(TLS), 这里会获取到g0
     _g_ := getg()
     ...
-    
     
     _p_ := _g_.m.p.ptr() // 通过g0.m，获取m拥有的p
     newg := gfget(_p_) // 马上讲到
@@ -628,9 +688,6 @@ func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerp
     // 初始化基本状态为Grunnable
     casgstatus(newg, _Gdead, _Grunnable)
 
-    // 关联go函数以及设置ID等步骤
-    ...
-
     //将G放入P的可运行队列
     runqput(_p_, newg, true)
 
@@ -646,7 +703,7 @@ func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerp
 
 }
 ```
-#### 3-1 gfget()
+#### 4-1 gfget()
 * 可以看下gfget是如何从当前P的自由G链表获取G的
 ```
 func gfget(_p_ *p) *g {
@@ -686,7 +743,7 @@ retry:
 }
 ```
 * 当goroutine执行完毕，调度器会将G对象放回P的自由G链表，而不会销毁
-#### 3-2 runqput()
+#### 4-2 runqput()
 * 在获取到G的时候，调度器会将其放入P的可运行G队列等待执行，proc.go文件
 ```
 func runqput(_p_ *p, gp *g, next bool) {
@@ -731,7 +788,7 @@ func runqput(_p_ *p, gp *g, next bool) {
     goto retry
 }
 ```
-#### 3-3 runqputslow()
+#### 4-3 runqputslow()
 ```
 // 1、往调度器的队列添加任务，需要加锁 所以称为slow
 // 2、会把本地运行队列中一半的g放到全局运行队列, 这样下次就可以继续用快速的本地运行队列了
@@ -762,7 +819,7 @@ func globrunqputbatch(batch *gQueue, n int32) {
     *batch = gQueue{} 
 }
 ```
-#### 3-4 wakep()
+#### 4-4 wakep()
 
 * 唤醒或新建一个M会通过wakep函数
 * 在newproc1成功创建G任务后 如果有空闲P 会尝试用wakep唤醒M执行任务
@@ -823,60 +880,6 @@ func startm(_p_ *p, spinning bool) {
 * **进入工作状态的M，会陷入调度循环，从各种可能的场所获取G也就是下文提到的全力查找可运行的G，一旦获取到G会立即运行这个G，前提是这个G未与其他M绑定。只有找不到可运行的G或者因为系统调用阻塞等原因被剥夺P，才会进入休眠状态。**
 
 
-
-
-
-## 4、关键概念 
-#### 4-1 P 队列
-* P有两种队列：本地队列和全局队列
-* 本地队列： 当前P的队列，本地队列是Lock-Free，没有数据竞争问题，无需加锁处理，可以提升处理速度
-* 全局队列：全局队列为了保证**多个P之间任务的平衡**。所有M共享P全局队列，为保证数据竞争问题，需要加锁处理。相比本地队列处理速度要低于全局队列。
-
-#### 4-2 上线文切换
-* 简单理解为当时的环境即可，环境可以包括当时程序状态以及变量状态。例如线程切换的时候在内核会发生上下文切换，这里的上下文就包括了当时寄存器的值，把寄存器的值保存起来，等下次该线程又得到cpu时间的时候再恢复寄存器的值，这样线程才能正确运行。
-
-* 对于代码中某个值说，上下文是指这个值所在的局部(全局)作用域对象。相对于进程而言，上下文就是进程执行时的环境，具体来说就是各个变量和数据，包括所有的寄存器变量、进程打开的文件、内存(堆栈)信息等。
-
-#### 4-3 线程清理（用户级别的goroutine清理）
-* Goroutine被调度执行必须保证P/M进行绑定，所以线程清理只需要让当前的M将P释放就可以实现线程的清理。什么时候P会释放，保证其它G可以被执行。P被释放主要有两种情况。
-    * 主动释放：最典型的例子是，当执行G任务时有系统调用，当发生系统调用时M会处于Block状态。调度器会设置一个超时时间，当超时时会将P释放。
-
-    * 被动释放：如果发生系统调用，有一个专门监控程序，进行扫描当前处于阻塞的P/M组合。当超过系统程序设置的超时时间，会自动将P资源抢走。去执行队列的其它G任务。
-    > 上面两种都是hand off机制：M把P让出去
-
-#### 4-4 关于hand off
-* 当 M 执行某一个 G 时候如果发生了`syscall`或则其余阻塞操作，M 会阻塞，如果当前有一些 G 在执行，runtime 会把这个线程 M 从 P 中摘除 (detach)，然后再创建一个新的操作系统的线程 (如果有空闲的线程可用就复用空闲线程) 来服务于这个 P；
-* 当 M 系统调用结束时候，这个 G 会尝试获取一个空闲的 P 执行，并放入到这个 P 的本地队列。如果获取不到 P，那么这个线程 M 变成休眠状态， 加入到空闲线程中，然后这个 G 会被放入全局队列中。
-#### 4-5 空闲M链表（有待深入理解）
-* 当M发现无待运行的G时会进入休眠, 并添加到**调度器空闲M链表**中, 空闲M链表保存在全局变量sched.
-* 进入休眠的M会等待一个信号量(m.park), 唤醒休眠的M会使用这个信号量
-* **go需要保证有足够的M可以运行G, 是通过这样的机制实现的:**
-    * 【1】入队待运行的G后, 如果当前无自旋的M但是有空闲的P, 就唤醒或者新建一个M
-    * 【2】当M离开自旋状态并准备运行出队的G时, 如果当前无自旋的M但是有空闲的P, 就唤醒或者新建一个M
-    * 【3】当M离开自旋状态并准备休眠时, 会在离开自旋状态后再次检查所有运行队列, 如果有待运行的G则重新进入自旋状态
-* 因为"入队待运行的G"和"M离开自旋状态"会同时进行, go会使用这样的检查顺序:
-    * 入队待运行的G => 内存屏障 => 检查当前自旋的M数量 => 唤醒或者新建一个M
-    * 减少当前自旋的M数量 => 内存屏障 => 检查所有运行队列是否有待运行的G => 休眠
-> 这样可以保证不会出现待运行的G入队了, 也有空闲的资源P, 但无M去执行的情况.
-#### 4-6 栈扩张
-
-* 因为go中的协程是stackful coroutine, 每一个goroutine都需要有自己的栈空间,栈空间的内容在goroutine休眠时需要保留, 待休眠完成后恢复(这时整个调用树都是完整的).
-* 这样就引出了一个问题, goroutine可能会同时存在很多个, 如果每一个goroutine都预先分配一个**足够**的栈空间那么go就会使用过多的内存.
-* 为了避免这个问题, go在一开始只为goroutine分配一个很小的栈空间, 它的大小在当前版本是2K，当函数发现栈空间不足时, 会申请一块新的栈空间并把原来的栈内容复制过去.
-
-* 会检查比较rsp减去一定值以后是否比g.stackguard0小, 如果小于等于则需要调到下面调用morestack_noctxt函数(该函数也可用于判断抢占)
-
-> `morestack_noctxt`函数清空`rdx`寄存器并调用`morestack`函数；`morestack`函数会保存G的状态到`g.sched`, 切换到g0和g0的栈空间, 然后调用`newstack`函数,`newstack`函数判断`g.stackguard0`等于`stackPreempt`, 就知道这是抢占触发的, 这时会再检查一遍是否要抢占
-
-#### 4-7 TLS
-* TLS的全称是Thread-local storage, 代表每个线程的中的本地数据.
-* 例如标准c中的errno就是一个典型的TLS变量, 每个线程都有一个独自的errno, 写入它不会干扰到其他线程中的值.
-* **go在实现协程时非常依赖TLS机制, 会用于获取系统线程中当前的G和G所属的M的实例.**
-* 因为go并不使用glibc, 操作TLS会使用系统原生的接口, 以linux x64为例,go在**新建M**时会调用`arch_prctl`这个syscall设置`FS`寄存器的值为`M.tls`的地址
-* 使得**运行中每个M的FS寄存器都会指向它们对应的M实例的tls**，linux内核调度线程时FS寄存器会跟着线程一起切换
-* 这样go代码只需要访问FS寄存器就可以存取线程本地的数据
-
-
 ## 5、Go调度器调度过程（宏观）
 * 【1】首先创建一个G对象，G对象保存到P本地队列或者是全局队列。P此时去唤醒/创建一个M。P继续执行它的执行序。
 * 【2】唤醒/创建后的M寻找是否有空闲的P（这个过程通过g0实现），如果有则将该G对象移动到它本身。
@@ -894,53 +897,18 @@ func startm(_p_ *p, spinning bool) {
 
 
 ## 6、Go调度器调度过程（源码实现）
-* m创建/唤醒之后，线程的入口是mstart，最后调用的即是mstart1：
-```
-func mstart1() {
-    _g_ := getg() // 找到一个等待运行的g
-    gosave(&_g_.m.g0.sched)
-    _g_.m.g0.sched.pc = ^uintptr(0)
-    asminit()
-    minit()
 
-    if _g_.m == &m0 {
-        initsig(false)
-    }
-
-    if fn := _g_.m.mstartfn; fn != nil {
-        fn()
-    }
-    schedule()
-}
-```
-* **里面最重要的就是schedule了，在schedule中的动作大体就是找到一个等待运行的g，然后然后搬到m上，设置其状态为Grunning,直接切换到g的上下文环境,恢复g的执行。**
-```
-func schedule() {
-    _g_ := getg()
-
-    if _g_.m.lockedg != nil {
-        stoplockedm()
-        execute(_g_.m.lockedg, false) // Never returns.
-    }
-}
-```
-* schedule的执行可以大体总结为：
-**schedule函数获取g => [必要时休眠] => [唤醒后继续获取] => execute函数执行g => 执行后返回到goexit => 重新执行schedule函数**
-
-* 简单来说g所经历的几个主要的过程就是：Gwaiting->Grunnable->Grunning。经历了创建,到挂在就绪队列,到从就绪队列拿出并运行整个过程。
-## 4、GMP模型的调度
-
-#### 4-1 简述
+#### 6-1 源码实现的大致思路
 
 * 在一轮调度的开始，调度器会先判断当前M是否已经锁定
   * 如果发现当前M已经与某个G锁定，就会立即停止调度并停止当前M。一旦与他锁定的G处于可运行状态，他就唤醒M并继续运行那个G。
   * 如果当前M并未与任何G锁定，调度器会检查是否有运行时串行任务正在等待执行
-    * 如果有，M会被停止并阻塞已等待运行时串行任务执行完成。一旦该串行任务执行完成，该M就会被唤醒。
+    * 如果有，M会被停止并阻塞已等待运行时串行任务执行完成。一旦该串行任务执行完成，该M就会被唤醒。（有待深入学习go的GC）
 * 调度器首先会从全局可运行G队列和本地P队列查找可运行的G
   * 如果找不到，调度器会进入强力查找模式，如果还找不到的话，该子流程就会暂停，直到有可运行的G的出现才会继续下去。
   * 如果找到可运行的G，调度器会判断该G未与任何M锁定的情况下，立即让当前M运行它。如果G已经锁定，那么调度器会唤醒与该G锁定的M并运行该G，停止当前M直到被唤醒。
 
-#### 4-2 分析
+#### 6-2 mstart
 
 * M启动时会调用`mstart`函数, m0在初始化后调用, 其他的的m在线程启动后调用.`mstart`流程如下：
   * 调用getg获取当前的g, 这里会获取到g0
@@ -952,6 +920,7 @@ func mstart1() {
 
     // 调用gosave函数保存当前的状态到g0的调度数据中
     // 以后每次调度都会从这个栈地址开始
+    // 简而言之，就是保存context
     gosave(&_g_.m.g0.sched)
     _g_.m.g0.sched.pc = ^uintptr(0)
 
@@ -973,76 +942,115 @@ func mstart1() {
     schedule()
 }
 ```
+* 前言提到的M执行并发任务的起点的第二种方式是`stopm`休眠唤醒,从而进入调度，而这种方式的M也**仅是从断点状态恢复**，调度器判断M未锁定的话就进入**获取G的调度循环**中
+#### 6-3 schedule
 
-* 进入`schedule`函数后，M就进入了核心调度循环。
-> 前言提到的M执行并发任务的起点的第二种方式是`stopm`休眠唤醒,从而进入调度，而这种方式的M也**仅是从断点状态恢复**，调度器判断M未锁定的话就进入获取G的调度循环中
+* **schedule中的动作大体就是找到一个等待运行的g，然后然后搬到m上，设置其状态为Grunning,直接切换到g的上下文环境,恢复g的执行**。进入`schedule`函数后，M就进入了核心调度循环。
+* 大致流程：
+  * **schedule函数获取g => [必要时休眠] => [唤醒后继续获取] => execute函数执行g => 执行后返回到goexit => 重新执行schedule函数**
+
+
+* 简单来说g所经历的几个主要的过程就是：Gwaiting->Grunnable->Grunning。经历了创建,到挂在就绪队列,到从就绪队列拿出并运行整个过程。
+
 ```
 func schedule() {
-    // 调用getg获取当前的g, 这里会获取到g0
+    // 调用getg获取当前的g和g所属的m实例
     _g_ := getg()
-      ...
-      //检查M的锁定状态，如果已经锁定，停止当前M
-      //直到当前M与之锁定G可运行
-      if _g_.m.lockedg != 0 {
-		stoplockedm()
-		execute(_g_.m.lockedg.ptr(), false) // Never returns.
-	}
-top:
-...
-   pp := _g_.m.p.ptr()
-	pp.preempt = false
-   //gcwaiting表示当前需要停止M
-	if sched.gcwaiting != 0 {
-      //STW 停止阻塞当前M以等待运行时串行任务执行完成
-		gcstopm()
-		goto top
-   }
-   ...
-   var gp *g
-   var inheritTime bool
-   ...
-   //GC MarkWorker 工作模式
-   //试图获取执行GC标记任务的G
-   if gp == nil && gcBlackenEnabled != 0 {
-		gp = gcController.findRunnableGCWorker(_g_.m.p.ptr())
-		tryWakeP = tryWakeP || gp != nil
-   }
+
+    ...
+
+    // 如果发现当前M已经与某个G锁定，就会立即停止调度并停止当前M
+    // 1、为什么要停止调度？因为schedu()目的是找到一个可以执行的G绑定到空的M上面运行。
+    // 到目前为止，只是找到一个可以运行的空的M而已，而如果找到的M已经和某个G绑定了，自然不是空的M了
+    // 2、既然M已经和G绑定了，那直接运行不就好了？因为要先停止对于目前M的调度，
+    // 并且把他休眠，得到其所绑定的G回来后，才允许运行他
+    if _g_.m.lockedg != 0 {
+
+        // M已经和G绑定了，停止调度并停止当前M
+        stoplockedm()
+
+        // 一旦与他锁定的G处于可运行状态，他就唤醒M并继续运行那个G
+        // Never returns.
+        execute(_g_.m.lockedg.ptr(), false) 
+    }
+
+top: 
+    // 开始核心调度循环
+    ...
+    pp := _g_.m.p.ptr()
+    pp.preempt = false
+    
+    // gcwaiting表示当前需要停止M
+    if sched.gcwaiting != 0 {
+        //STW 停止阻塞当前M以等待运行时串行任务执行完成
+        gcstopm()
+        goto top
+    }
+    
+    ...
    
-   //每隔一段时间就去从全局队列获取G任务，确保公平性
-   //否则，两个goroutines会通过不断地彼此刷新来完全占用本地运行队列。
-   if gp == nil {
-		// Check the global runnable queue once in a while to ensure fairness.
-		// Otherwise two goroutines can completely occupy the local runqueue
-		// by constantly respawning each other.
-		if _g_.m.p.ptr().schedtick%61 == 0 && sched.runqsize > 0 {
-			lock(&sched.lock)
-			gp = globrunqget(_g_.m.p.ptr(), 1)
-			unlock(&sched.lock)
-		}
-   }
-   //试图从本地P的可运行G队列获取G
-   if gp == nil {
-		gp, inheritTime = runqget(_g_.m.p.ptr())
-		// We can see gp != nil here even if the M is spinning,
-		// if checkTimers added a local goroutine via goready.
-   }
-   //如果还是未找到可运行的G，进入findrunnable模式
-   if gp == nil {
-		gp, inheritTime = findrunnable() // blocks until work is available
-	}
-  //如果被标记为自旋状态，重置这个M
-   if _g_.m.spinning {
-		resetspinning()
-   }
-   ...
-   //如果该G锁定，唤醒锁定的M运行该G
-   if gp.lockedm != 0 {
-		// Hands off own p to the locked m,
-		// then blocks waiting for a new p.
-		startlockedm(gp)
-		goto top
-	}
-   //执行goroutine任务函数
+    var gp *g
+    var inheritTime bool
+
+    ...
+
+    // 以上代码，还需进一步学习才能更好的理解
+    // 现阶段，重点掌握下面的内容
+    
+    // GC MarkWorker 工作模式
+    // 试图获取执行GC标记任务的G
+    if gp == nil && gcBlackenEnabled != 0 {
+    	gp = gcController.findRunnableGCWorker(_g_.m    p.ptr())
+    	tryWakeP = tryWakeP || gp != nil
+    }
+   
+    // 每隔一段时间就去从全局队列获取G任务，确保公平性，为了公平起见, 每61次调度从全局运行队列获取一次G
+    // 否则，两个goroutines会通过不断地彼此刷新来完全占用本地运行队列
+    // 因为这两个goroutine可以循环一直占用时间片
+    if gp == nil {
+        // Check the global runnable queue once in a while to ensure fairness.
+        // Otherwise two goroutines can completely occupy the local runqueue
+        // by constantly respawning each other.
+        if _g_.m.p.ptr().schedtick%61 == 0 && sched.runqsize > 0 {
+            lock(&sched.lock)
+            gp = globrunqget(_g_.m.p.ptr(), 1)
+            unlock(&sched.lock)
+        }
+    }
+    // 试图从本地P的可运行G队列获取G
+    if gp == nil {
+        gp, inheritTime = runqget(_g_.m.p.ptr())
+    }
+
+    // 快速获取失败时, 调用findrunnable函数获取待运行的G, 会阻塞到获取成功为止
+    if gp == nil {
+        // blocks until work is available
+        gp, inheritTime = findrunnable()    
+    }
+
+    // 此时，成功获取到一个待运行的G
+    
+    // 1、让M离开自旋状态, 调用resetspinning, 这里的处理和findrunnable的不一样
+    // 2、如果当前有空闲的P, 但是无自旋的M(nmspinning等于0), 则唤醒或新建一个M
+    // 3、这里离开自选状态是为了执行G, 所以会检查是否有空闲的P, 有则表示可以再开新的M执行G
+    // 4、findrunnable离开自旋状态是为了休眠M, 所以会再次检查所有队列然后休眠
+    if _g_.m.spinning {
+        resetspinning()
+    }
+    
+    ...
+    // 如果G要求回到指定的M(G和M已经绑定)，唤醒锁定的M运行该G
+    if gp.lockedm != 0 {
+        // Hands off own p to the locked m,
+        // then blocks waiting for a new p.
+        // 把G和P交给该M, 自己进入休眠
+        startlockedm(gp)
+
+        // 从休眠唤醒后跳到schedule的顶部重试
+        goto top
+    }
+
+   // 执行goroutine任务函数
    execute(gp, inheritTime)
 }
 ```
@@ -1050,243 +1058,76 @@ top:
 * 值得注意的是如果M被标记为自旋状态，意味着还没有找到G来运行，而无论是因为找到了可运行的G又或者因为始终未找到可运行的G而需要停止M，当前M都会退出自旋状态
 * 提一点,一般情况下，运行时系统中至少会有一个自旋的M，调度器会尽量保证有一个自旋M的存在。除非没有自旋的M，调度器是不会新启用或回复一个M去运行新G的，一旦需要新启用一个M或者恢复一个M，他最初都是处于自旋状态。
 * 整个一轮调度过程如表示：
+
+#### 6-4 execute
 ```
 func execute(gp *g, inheritTime bool) {
-   _g_ := getg()
-   _g_.m.curg = gp
-   gp.m = _g_.m
-   ...
-	casgstatus(gp, _Grunnable, _Grunning)
-	gp.waitsince = 0
-	gp.preempt = false
-   gp.stackguard0 = gp.stack.lo + _StackGuard
-   gogo(&gp.sched)
+    // 调用getg获取当前的g
+    _g_ := getg()
+    _g_.m.curg = gp // gp是即将要执行的g，绑定到m上面
+    gp.m = _g_.m
+    
+    ...
+	
+    // 把G的状态由待运行(_Grunnable)改为运行中(_Grunning)
+    casgstatus(gp, _Grunnable, _Grunning)
+    
+    gp.waitsince = 0
+    
+    gp.preempt = false
+    
+    // 设置G的stackguard, 栈空间不足时可以扩张
+    gp.stackguard0 = gp.stack.lo + _StackGuard
+
+    // 这个函数会根据g.sched中保存的状态恢复各个寄存器的值并继续运行g
+    gogo(&gp.sched)
 }
 ```
 
-* 在前面流程图中把寻找可运行G的过程同意概括了，但是在程序运行中，Go是按照一定的顺序来查找G，这个在上文和程序里都有标识
-* 值得注意的是如果本地P队列也无法找到可运行的G，程序会进入`findrunnable`全力查找可运行的G,整个过程可以分为两个阶段，具体参考下图:
-![](img/全力查找.png)
+#### 6-5 gogo
+* 这个函数会根据`g.sched`中保存的状态恢复各个寄存器的值并继续运行g
+  * 首先针对`g.sched.ctxt`调用**写屏障**(GC标记指针存活), `ctxt`中一般会保存指向[函数+参数]的指针
+  * 设置TLS中的g为`g.sched.g`, 也就是g自身
+  * 设置rsp寄存器为`g.sched.rsp`
+  * 设置rax寄存器为`g.sched.ret`
+  * 设置rdx寄存器为`g.sched.ctxt` (上下文)
+  * 设置rbp寄存器为`g.sched.rbp`
+  * 清空sched中保存的信息
+  * 跳转到`g.sched.pc`，开始执行pc
+* **因为前面创建`goroutine`的`newproc1`函数把返回地址设为了`goexit`, 函数运行完毕返回时将会调用`goexit`函数**
+* `g.sched.pc`在G首次运行时会指向目标函数的第一条机器指令,
+如果G被抢占或者等待资源而进入休眠, 在休眠前会保存状态到`g.sched`,`g.sched.pc`会变为唤醒后需要继续执行的地址, **保存状态**的实现将在下面讲解
 
-值得一提的是执行终结器的G可以理解为垃圾回收器在回收一个对象之前，就会执行与之关联的终结函数。所有的终结函数的执行都会由一个专用的G负责。调度器会在判定这个G已完成任务之后试图获取它，然后把他置为Grunnable状态并放入本地P的可运行G队列。
-func findrunnable() (gp *g, inheritTime bool) {
-   _g_ := getg()
-   
-top:
-   _p_ := _g_.m.p.ptr()
-   //仍然会先判断gcwaiting
-	if sched.gcwaiting != 0 {
-		gcstopm()
-		goto top
-   }
-   ...
-   //fing是用来执行finalizaer的goroutine
-   //获取执行终结器的G
-   if fingwait && fingwake {
-		if gp := wakefing(); gp != nil {
-			ready(gp, 0, true)
-		}
-	}
-   //从本地P的可运行队列获取G
-   if gp, inheritTime := runqget(_p_); gp != nil {
-		return gp, inheritTime
-   }
-   //从调度器的可运行G队列获取
-   if sched.runqsize != 0 {
-		lock(&sched.lock)
-		gp := globrunqget(_p_, 0)
-		unlock(&sched.lock)
-		if gp != nil {
-			return gp, false
-		}
-   }
-   //从I/O轮询器获取G
-   if netpollinited() && atomic.Load(&netpollWaiters) > 0 && atomic.Load64(&sched.lastpoll) != 0 {
-      //尝试从netpoller获取Glist
-      if list := netpoll(0); !list.empty() { // non-blocking
-         //表头G
-         gp := list.pop()
-         //将其余队列放入sched的可运行G队列
-			injectglist(&list)
-			casgstatus(gp, _Gwaiting, _Grunnable)
-			if trace.enabled {
-				traceGoUnpark(gp, 0)
-			}
-			return gp, false
-		}
-   }
-   ...
-   //这里进入这一步有两个条件，后文会讲
-   //通过伪随机 从全局P队列的P的可运行G队列中偷取G
-   for i := 0; i < 4; i++ {
-		for enum := stealOrder.start(fastrand()); !enum.done(); enum.next() {
-         ...
-         stealRunNextG := i > 2
-         p2 := allp[enum.position()]
-         //从p2的可运行G队列中盗取一般的G到本地P的G队列
-         if gp := runqsteal(_p_, p2, stealRunNextG); gp != nil {
-				return gp, false
-         }
-         ...
-         	if i > 2 && shouldStealTimers(p2) {
-				tnow, w, ran := checkTimers(p2, now)
-				now = tnow
-				if w != 0 && (pollUntil == 0 || w < pollUntil) {
-					pollUntil = w
-				}
-				if ran {
-					//运行计时器可能已经使任意数量的G就绪，并将它们添加到P的本地运行队列中。这使runqsteal的假设无效，即总是有空间添加偷来的G。所以现在检查是否有一个本地的G要运行。
-					if gp, inheritTime := runqget(_p_); gp != nil {
-						return gp, inheritTime
-					}
-					ranTimer = true
-				}
-			}
-      }
-   }
-   
-   if ranTimer {
-		// Running a timer may have made some goroutine ready.
-		goto top
-   }
+#### 6-6 执行goexit前的保存状态操作
+* 目标函数执行完毕后会调用`goexit`函数, `goexit`函数会调用`goexit1`函数, `goexit1`函数会通过`mcall`调用`goexit0`函数.
+* `mcall`这个函数就是用于实现**保存状态**的, 处理如下:
+    * 设置`g.sched.pc`等于当前的返回地址
+    * 设置`g.sched.sp`等于寄存器rsp的值
+    * 设置`g.sched.g`等于当前的g
+    * 设置`g.sched.bp`等于寄存器rbp的值
+    * **！！切换TLS中当前的g等于m.g0**
+    * **！！设置寄存器rsp等于`g0.sched.sp`, 使用g0的栈空间**
+    * 设置第一个参数为原来的g
+    * 设置rdx寄存器为指向函数地址的指针(上下文)
+    * 调用指定的函数, 不会返回
+* `mcall`这个函数保存当前的运行状态到`g.sched`, 然后切换到g0和g0的栈空间, 再调用指定的函数
+* 回到g0的栈空间这个步骤非常重要, 因为这个时候g已经中断, 继续使用g的栈空间且其他M唤醒了这个g将会产生灾难性的后果（**g的栈空间只属于他自己**）
+* G在中断或者结束后都会通过`mcall`回到g0的栈空间继续调度, 从`goexit`调用的`mcall`的保存状态其实是多余的, 因为G已经结束了
 
-   stop:
-   //获取执行GC标记任务的G
-   //当前是否处于GC标记阶段？本地P是否可用于GC标记任务？
-   if gcBlackenEnabled != 0 && _p_.gcBgMarkWorker != 0 && gcMarkWorkAvailable(_p_) {
-      _p_.gcMarkWorkerMode = gcMarkWorkerIdleMode
-      //将本地P的GC标记专用G职位Grunnable
-		gp := _p_.gcBgMarkWorker.ptr()
-		casgstatus(gp, _Gwaiting, _Grunnable)
-		if trace.enabled {
-			traceGoUnpark(gp, 0)
-		}
-		return gp, false
-   }
-   
-   ...
-   //
-   lock(&sched.lock)
-   //检查GC回收状态
-	if sched.gcwaiting != 0 || _p_.runSafePointFn != 0 {
-		unlock(&sched.lock)
-		goto top
-   }
-   //尝试从调度器可运行G队列获取G
-	if sched.runqsize != 0 {
-		gp := globrunqget(_p_, 0)
-		unlock(&sched.lock)
-		return gp, false
-	}
-	if releasep() != _p_ {
-		throw("findrunnable: wrong p")
-   }
-   //如果找不到G，会解除本地P与当前M的关联
-   //并将该P放入调度器的空闲P列表 
-	pidleput(_p_)
-   unlock(&sched.lock)
-   ...
-   //再次检查全局P列表
-   //遍历全局P列表的P，并检查他们的可运行G队列
-   for _, _p_ := range allpSnapshot {
-		if !runqempty(_p_) {
-			lock(&sched.lock)
-			_p_ = pidleget()
-         unlock(&sched.lock)
-         //发现一个P不是空的，就从调度器pidle中取出一个P
-         //判断可用后与当前M关联在一起，返回第一阶段重新搜索可运行的G
-			if _p_ != nil {
-				acquirep(_p_)
-				if wasSpinning {
-					_g_.m.spinning = true
-					atomic.Xadd(&sched.nmspinning, 1)
-				}
-				goto top
-			}
-			break
-		}
-   }
-   //再次获取GC的G
-   //判断gcBlackenEnabled以及当前GC相关的全局资源是否可用
-   if gcBlackenEnabled != 0 && gcMarkWorkAvailable(nil) {
-      lock(&sched.lock)
-      //从调度器pidle里拿出一个P
-      _p_ = pidleget()
-		if _p_ != nil && _p_.gcBgMarkWorker == 0 {
-			pidleput(_p_)
-			_p_ = nil
-		}
-      unlock(&sched.lock)
-      //如果这个P持有GC标记，关联这个P与当前M
-		if _p_ != nil {
-			acquirep(_p_)
-			if wasSpinning {
-				_g_.m.spinning = true
-				atomic.Xadd(&sched.nmspinning, 1)
-			}
-			// 再次执行第二阶段.
-			goto stop
-		}
-   }
-   //再次检查netpoll，先判断netpoller是否初始化，是否有I/O操作
-   if netpollinited() && (atomic.Load(&netpollWaiters) > 0 || pollUntil != 0) && atomic.Xchg64(&sched.lastpoll, 0) != 0 {
-      atomic.Store64(&sched.pollUntil, uint64(pollUntil))
-      //尝试从netpoller获取Glist
-      list := netpoll(delta)
-      if faketime != 0 && list.empty() {
-         stopm()
-			goto top
-      }
-      ...
-      _p_ = pidleget()
-      ...
-		if _p_ == nil {
-			injectglist(&list)
-		} else {
-			acquirep(_p_)
-			if !list.empty() {
-				gp := list.pop()
-				injectglist(&list)
-				casgstatus(gp, _Gwaiting, _Grunnable)
-				if trace.enabled {
-					traceGoUnpark(gp, 0)
-				}
-				return gp, false
-			}
-			if wasSpinning {
-				_g_.m.spinning = true
-				atomic.Xadd(&sched.nmspinning, 1)
-			}
-			goto top
-		}
-   }
+#### 6-7 mcall保存状态之后的继续调用goexit0
+* `goexit1`函数会通过`mcall`调用`goexit0`函数, `goexit0`函数调用时已经回到了**g0**的栈空间, 处理如下:
+    * 把G的状态由运行中(`_Grunning`)改为已中止(`_Gdead`)
+    * 清空G的成员
+    * **调用`dropg`函数解除M和G之间的关联**
+    * 调用gfput函数把**G放到P的自由列表中**, 下次创建G时可以复用
+    * 调用`schedule`函数继续调度
+    * G结束后回到`schedule`函数, 这样就结束了一个调度循环
+* 不仅只有G结束会重新开始调度, **G被抢占或者等待资源**也会重新进行调度, 下面继续来看这两种情况
 
-   //休眠M
-   stopm()
-	goto top
-}
-复制代码
-netpoller是Go为了在操作系统提供的异步I/O基础组件之上，实现自己的阻塞时I/O而编写的一个子程序。
-从netpoller这里获取G，即获取那些已经接受到通知的G，它们既然已经可以进行网络读写操作了，那么调度器理应让他们转入Grunnable状态并等待运行。
-
-执行从全局P列表的P中可运行G队列获取P是由先决条件的
-
-：
-procs := uint32(gomaxprocs)
-//如果当前处于自旋状态的M的数量的两倍大于非空闲P的数量 跳过这个步骤
-if !_g_.m.spinning && 2*atomic.Load(&sched.nmspinning) >= procs-atomic.Load(&sched.npidle) {
-  	goto stop
- }
-  if !_g_.m.spinning {
-  	_g_.m.spinning = true
-  	atomic.Xadd(&sched.nmspinning, 1)
-  }
-复制代码
-第一个条件是：除了当前P还有非空闲P。空闲的P的可运行G队列必定为空。也就是说如果出了本地P之外其他所有的P都是空闲的，那么就没有必要再去他们那里获取G。
-第二个条件是：当前M不处于自旋状态并且处于自旋状态M的数量大于非空闲P数量的二分之一，那么就会跳过这个阶段。仅有当前M处于自旋状态或者处于自旋状态M的数量小于非空闲P的数量的二分之一。这主要是为了控制自旋M的数量，过多的自旋M会消耗过多CPU资源。
 
 ## 7、抢占式调度
-* 当有很多goroutine需要执行的时候，是怎么调度的了，上面说的P还没有出场呢，在`runtime.main`中会创建一个额外m运行`sysmon`函数，抢占就是在`sysmon`中实现的。
+#### 7-1 前言
+* 当有很多`goroutine`需要执行的时候，是怎么调度的了，上面说的P还没有出场呢，在`runtime.main`中会创建一个额外m运行`sysmon`函数，抢占就是在`sysmon`中实现的。
 
 * `sysmon`会进入一个无限循环, 第一轮回休眠20us, 之后每次休眠时间倍增, 最终每一轮都会休眠10ms. 
 * `sysmon`中有
@@ -1309,15 +1150,17 @@ func sysmon() {
             delay = 10 * 1000
         }
         usleep(delay)
-
         ......
     }       
 }
 ```
-* 里面的函数retake负责抢占
+#### 7-2 retake
+* 里面的函数`retake`负责抢占
 ```
 func retake(now int64) uint32 {
     n := 0
+
+    // 枚举所有的P
     for i := int32(0); i < gomaxprocs; i++ {
         _p_ := allp[i]
         if _p_ == nil {
@@ -1367,33 +1210,34 @@ func retake(now int64) uint32 {
 ```
 * `retake`函数负责处理抢占, 流程是:枚举所有的P
   * 如果P在系统调用中(`_Psyscall`), 且经过了一次sysmon循环(20us~10ms), 则抢占这个P，调用handoffp解除M和P之间的关联
-    * 如果P在运行中(`_Prunning`), 且经过了一次sysmon循环并且G运行时间超过`forcePreemptNS`(10ms), 则抢占这个P，调用`preemptone`函数
+  * 如果P在运行中(`_Prunning`), 且经过了一次sysmon循环并且G运行时间超过`forcePreemptNS`(10ms), 则抢占这个P，调用`preemptone`函数
     * 设置`g.preempt = true`
     * 设置`g.stackguard0 = stackPreempt`
-* 为什么设置了`stackguard`就可以实现抢占?
-    * 因为这个值用于检查当前栈空间是否足够, go函数的开头会比对这个值判断是否需要**扩张栈**,**前面有解释了**
-    * `stackPreempt`是一个特殊的常量, 它的值会比任何的栈地址都要大, 检查时一定会触发栈扩张.
-    * 栈扩张调用的是`morestack_noctxt`函数,` morestack_noctxt`函数清空`rdx`寄存器并调用`morestack`函数.
-    * `morestack`函数会保存G的状态到`g.sched`, 切换到g0和g0的栈空间, 然后调用`newstack`函数.
-    * `newstack`函数判断`g.stackguard0`等于`stackPreempt`, 就知道这是抢占触发的, 这时会再检查一遍是否要抢占:
-      * 如果M被锁定(函数的本地变量中有P), 则跳过这一次的抢占并调用gogo函数继续运行G
-      * 如果M正在分配内存, 则跳过这一次的抢占并调用gogo函数继续运行G
-      * 如果M设置了当前不能抢占, 则跳过这一次的抢占并调用gogo函数继续运行G
-      * 如果M的状态不是运行中, 则跳过这一次的抢占并调用gogo函数继续运行G
+    * 判断可以抢占之后，保存环境，执行`gopreempt_m`
 
-    * 即使这一次抢占失败, 因为g.preempt等于true, runtime中的一些代码会重新设置stackPreempt以重试下一次的抢占.
-    * 如果判断可以抢占, 则继续判断是否GC引起的,
-      * 如果是,则对G的栈空间执行标记处理(扫描根对象)然后继续运行,
-      * 如果不是GC引起的则调用gopreempt_m函数完成抢占.
-
+#### 7-3 gopreempt_m
 * `gopreempt_m`函数会调用`goschedImpl`函数, `goschedImpl`函数的流程是:
-
-  * 把G的状态由运行中(_Grunnable)改为待运行(_Grunnable)
-  * 调用dropg函数解除M和G之间的关联
-  * 调用globrunqput把G放到全局运行队列
-  * 调用schedule函数继续调度
+  * 把G的状态由运行中(`_Grunnable`)改为待运行(`_Grunnable`)
+  * **调用`dropg`函数解除M和G之间的关联**
+  * 调用`globrunqput`把G放到全局运行队列
+  * 调用`schedule`函数继续调度
 * 因为全局运行队列的优先度比较低, 各个M会经过一段时间再去重新获取这个G执行,抢占机制保证了不会有一个G长时间的运行导致其他G无法运行的情况发生.
 
+#### 7-4 如何判断抢占
+* 为什么设置了`stackguard`就可以实现抢占?
+    * 因为这个值用于检查当前栈空间是否足够, go函数的开头会比对这个值判断是否需要**扩张栈**，具体实现如下
+* `stackPreempt`是一个特殊的常量, 它的值会比任何的栈地址都要大, 检查时一定会触发栈扩张（空间一定不足，申请栈扩张）
+    * 【1】栈扩张调用的是`morestack_noctxt`函数,` morestack_noctxt`函数清空`rdx`寄存器并调用`morestack`函数，`morestack`函数会保存G的状态到`g.sched`, **切换到g0和g0的栈空间**, 然后调用`newstack`函数.
+    * 【2】`newstack`函数判断`g.stackguard0`等于`stackPreempt`, **就知道这是抢占触发的**, 这时会再检查一遍是否要抢占:
+      * 如果M被锁定(函数的本地变量中有P), 则跳过这一次的抢占并调用`gogo`函数继续运行G
+      * 如果M正在分配内存, 则跳过这一次的抢占并调用`gogo`函数继续运行G
+      * 如果M设置了当前不能抢占, 则跳过这一次的抢占并调用`gogo`函数继续运行G
+      * 如果M的状态不是运行中, 则跳过这一次的抢占并调用`gogo`函数继续运行G
+    > 并发环境下，M状态也在变化，真正要抢占M时，M已经不可以抢占了
+    * 【3】即使这一次抢占失败, **因为`g.preempt`等于`true`**, `runtime`中的一些代码会重新设置`stackPreempt`以重试下一次的抢占.
+    * 【4】如果判断可以抢占, 则继续判断是否GC引起的,
+      * 如果是,则对G的栈空间执行标记处理(扫描根对象)然后继续运行,
+      * 如果不是GC引起的则调用`gopreempt_m`函数完成抢占.
 
 ## 8、再次理解m0、g0
 
@@ -1402,8 +1246,29 @@ func retake(now int64) uint32 {
 * 除了每个M都有属于他的g0外，还存在一个runtime.g0。这个g0用于**执行引导程序**，它运行在Go程序拥有的第一个内核线程中，这个内核线程也被称为runtime.m0。
 
 ## 9、总结
-相比大多数并行设计模型，Go比较优势的设计就是P上下文这个概念的出现，如果只有G和M的对应关系，那么当G阻塞在IO上的时候，M是没有实际在工作的，这样造成了资源的浪费，没有了P，那么所有G的列表都放在全局，这样导致临界区太大，对多核调度造成极大影响。有了P之后，切换上
+* 相比大多数并行设计模型，Go比较优势的设计就是**P上下文这个概念的出现**，如果只有G和M的对应关系，那么当G阻塞在IO上的时候，M是没有实际在CPU工作的，这样造成了资源的浪费，没有了P，那么所有G的列表都放在全局，这样导致临界区太大，对多核调度造成极大影响
+* 有了P之后，逻辑上切换多个G到多个M上面
+    * 线程：涉及模式切换(从用户态切换到内核态)、16个寄存器、PC、SP...等寄存器的刷新等。
+    * G：仅仅涉及g-g0的切换，且只有三个寄存器的值修改 - PC / SP / DX.
+    * 协程拥有的栈只有2K，线程有8M
+* 那么不是还有涉及到M在CPU上面的切换吗？不是照样要消耗？
+  * 我的理解m:n总比1：1消耗少吧，况且实际的场景m>>n的
 
-而goroutine在使用上面的特点，感觉既可以用来做密集的多核计算，又可以做高并发的IO应用，做IO应用的时候，写起来感觉和对程序员最友好的同步阻塞一样，而实际上由于runtime的调度，底层是以同步非阻塞的方式在运行（即IO多路复用）。
+* 所以说**保护现场的抢占式调度**和**G被阻塞后传递给其他m调用**的核心思想，使得goroutine的产生
 
-所以说保护现场的抢占式调度和G被阻塞后传递给其他m调用的核心思想，使得goroutine的产生。
+## 10、回顾历史
+#### 10-1 进程、线程 和 协程 之间概念的区别
+* 对于 进程、线程，都是有内核进行调度，有 CPU 时间片的概念，进行**抢占式调度**（有多种调度算法）
+8 对于协程(用户级线程)，这是对内核透明的，也就是系统并不知道有协程的存在，是完全由用户自己的程序进行调度的，因为是由用户程序自己控制，那么就很难像抢占式调度那样做到强制的 CPU 控制权切换到其他进程/线程，通常只能进行**协作式调度**，需要协程自己主动把控制权转让出去之后，其他协程才能被执行到。
+#### 10-2 goroutine 和协程区别
+* 本质上，goroutine 就是协程。 不同的是，Golang 在 runtime、系统调用等多方面对 goroutine 调度进行了封装和处理，当遇到长时间执行或者进行系统调用时，**会主动把当前 goroutine 的CPU (P) 转让出去**,对于程序员来书，又不仅仅是协作式调度了。让其他 goroutine 能被调度并执行，也就是 Golang 从语言层面支持了协程。
+#### 10-3 协程的历史以及特点
+* 由于协程是非抢占式的调度，无法实现公平的任务调用。也无法直接利用多核优势。因此，我们不能武断地说协程是比线程更高级的技术。
+* 尽管，在任务调度上，协程是弱于线程的。但是在资源消耗上，协程则是极低的。一个线程的内存在 MB 级别，而协程只需要 KB 级别。而且线程的调度需要内核态与用户的频繁切入切出，资源消耗也不小。
+* 我们把协程的基本特点归纳为：
+  * 1. 协程调度机制无法实现公平调度
+  * 2. 协程的资源开销是非常低的，一台普通的服务器就可以支持百万协程。
+* 那么，近几年为何协程的概念可以大热。我认为一个特殊的场景使得协程能够广泛的发挥其优势，并且屏蔽掉了劣势 --> 网络编程。与一般的计算机程序相比，网络编程有其独有的特点。
+  * 1. 高并发（每秒钟上千数万的单机访问量）
+  * 2. Request/Response。程序生命期端（毫秒，秒级）
+  * 3. 高IO，低计算（连接数据库，请求API）。
