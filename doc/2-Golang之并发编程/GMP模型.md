@@ -530,7 +530,7 @@ func (pp *p) destroy() {
 * 因为go并不使用glibc, 操作TLS会使用系统原生的接口, 以linux x64为例,go在**新建M**时会调用`arch_prctl`这个syscall设置`FS`寄存器的值为`M.tls`的地址
 * 使得**运行中每个M的FS寄存器都会指向它们对应的M实例的tls**，linux内核调度线程时FS寄存器会跟着线程一起切换
 * 这样go代码只需要访问FS寄存器就可以存取线程本地的数据
-#### 4-8 写屏障(Write Barrier)
+#### 2-8 写屏障(Write Barrier)
 * 因为go支持并行GC, GC的扫描和go代码可以同时运行, 这样带来的问题是GC扫描的过程中go代码有可能改变了对象的依赖树,例如开始扫描时发现根对象A和B, B拥有C的指针, GC先扫描A, 然后B把C的指针交给A, GC再扫描B, 这时C就不会被扫描到
 * 为了避免这个问题, go在GC的**标记阶段**会启用写屏障(Write Barrier)
 * 启用了写屏障(`Write Barrier`)后, 当B把C的指针交给A时, GC会认为在这一轮的扫描中C的指针是存活的,即使A可能会在稍后丢掉C, 那么C就在下一轮回收
