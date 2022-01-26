@@ -8,7 +8,8 @@
 
 ## 2.Golang之并发编程
 #### [2.1-sync.Map的实现原理](https://github.com/547173318/redo-golang/blob/main/doc/2-Golang%E4%B9%8B%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B/2.1-sync.Map%E7%9A%84%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86.md)
-#### [2.2-GMP源码解析](https://github.com/547173318/redo-golang/blob/main/doc/2-Golang%E4%B9%8B%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B/GMP%E6%A8%A1%E5%9E%8B.md)
+#### [2.2-GMP源码解析](https://github.com/547173318/redo-golang/blob/main/doc/2-Golang%E4%B9%8B%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B/2.2-GMP%E6%A8%A1%E5%9E%8B.md)
+#### [2.3-channel源码解析](https://github.com/547173318/redo-golang/blob/main/doc/2-Golang%E4%B9%8B%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B/2.3-channel%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90.md)
 
 ## 3.Golang之网络编程
 * **3-1 学习记录**
