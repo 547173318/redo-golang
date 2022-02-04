@@ -6,7 +6,7 @@
 * [1.1.4-interface中不同接收者（值、指针）如何影响接口实例化过程](https://github.com/547173318/redo-golang/blob/main/doc/1-Golang%E4%B9%8B%E5%9F%BA%E7%A1%80/1.4-interface%E4%B8%AD%E4%B8%8D%E5%90%8C%E6%8E%A5%E6%94%B6%E8%80%85%EF%BC%88%E5%80%BC%E3%80%81%E6%8C%87%E9%92%88%EF%BC%89%E5%A6%82%E4%BD%95%E5%BD%B1%E5%93%8D%E6%8E%A5%E5%8F%A3%E5%AE%9E%E4%BE%8B%E5%8C%96%E8%BF%87%E7%A8%8B.md)
 * [1.1.5-slice调用append内存对齐机制](https://github.com/547173318/redo-golang/blob/main/doc/1-Golang%E4%B9%8B%E5%9F%BA%E7%A1%80/1.7-slice%E8%B0%83%E7%94%A8append%E5%86%85%E5%AD%98%E5%AF%B9%E9%BD%90%E6%9C%BA%E5%88%B6.md)
 * [1.1.6-slice值传递还是引用传递](https://github.com/547173318/redo-golang/blob/main/doc/1-Golang%E4%B9%8B%E5%9F%BA%E7%A1%80/1.8-slice%E5%80%BC%E4%BC%A0%E9%80%92%E8%BF%98%E6%98%AF%E5%BC%95%E7%94%A8%E4%BC%A0%E9%80%92.md)
-#### [1.2.1-golang实现map源码解析](https://github.com/547173318/redo-golang/blob/main/doc/1-Golang%E4%B9%8B%E5%9F%BA%E7%A1%80/1-5-map%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90.md)
+#### [1.2.1-golang实现map源码解析](https://github.com/547173318/redo-golang/blob/main/doc/1-Golang%E4%B9%8B%E5%9F%BA%E7%A1%80/1.5-map%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90.md)
 #### [1.2.2-golang实现channel源码解析](https://github.com/547173318/redo-golang/blob/main/doc/2-Golang%E4%B9%8B%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B/2.3-channel%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90.md)
 #### [1.2.3-golang实现slice源码解析](https://github.com/547173318/redo-golang/blob/main/doc/1-Golang%E4%B9%8B%E5%9F%BA%E7%A1%80/1.6-slice%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90.md)
 
