@@ -9,12 +9,14 @@
 #### [1.2.1-golang实现map源码解析](https://github.com/547173318/redo-golang/blob/main/doc/1-Golang%E4%B9%8B%E5%9F%BA%E7%A1%80/1.5-map%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90.md)
 #### [1.2.2-golang实现channel源码解析](https://github.com/547173318/redo-golang/blob/main/doc/2-Golang%E4%B9%8B%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B/2.3-channel%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90.md)
 #### [1.2.3-golang实现slice源码解析](https://github.com/547173318/redo-golang/blob/main/doc/1-Golang%E4%B9%8B%E5%9F%BA%E7%A1%80/1.6-slice%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90.md)
+#### [1.2.4-golang实现mutex互斥锁源码解析](https://github.com/547173318/redo-golang/blob/main/doc/2-Golang%E4%B9%8B%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B/2.4-synx%E5%8C%85%E4%B8%8Bmutex%E6%9C%BA%E5%88%B6%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90.md)
 
 
 ## 2.Golang之并发编程
 #### [2.1-sync.Map的实现原理](https://github.com/547173318/redo-golang/blob/main/doc/2-Golang%E4%B9%8B%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B/2.1-sync.Map%E7%9A%84%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86.md)
 #### [2.2-GMP源码解析(！！经常复习！！)](https://github.com/547173318/redo-golang/blob/main/doc/2-Golang%E4%B9%8B%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B/2.2-GMP%E6%A8%A1%E5%9E%8B.md)
 #### [2.3-channel源码解析](https://github.com/547173318/redo-golang/blob/main/doc/2-Golang%E4%B9%8B%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B/2.3-channel%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90.md)
+#### [2.4-sync包下的mutex源码解析](https://github.com/547173318/redo-golang/blob/main/doc/2-Golang%E4%B9%8B%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B/2.4-synx%E5%8C%85%E4%B8%8Bmutex%E6%9C%BA%E5%88%B6%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90.md)
 
 ## 3.Golang之网络编程
 * **3-1 学习记录**
