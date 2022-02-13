@@ -31,6 +31,7 @@
   * [项目2-Gump仓库地址](https://github.com/547173318/Gump)
     * [技术总结1-jwt与多点登入](https://github.com/547173318/Gump/blob/main/%E6%8A%80%E6%9C%AF%E6%80%BB%E7%BB%93/%E7%94%A8%E6%88%B7%E7%99%BB%E5%85%A5%E4%B8%8Ejwt.md)
     * [技术总结2-snowflake算法生成唯一ID](https://github.com/547173318/redo-golang/blob/main/doc/5-Golang%E4%B9%8B%E5%B8%B8%E7%94%A8%E6%A0%87%E5%87%86%E5%BA%93/snowFlake%E7%AE%97%E6%B3%95%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90.md)
+    * [技术总结3-令牌桶限流策略源码分析.md](https://github.com/547173318/redo-golang/blob/main/doc/5-Golang%E4%B9%8B%E5%B8%B8%E7%94%A8%E6%A0%87%E5%87%86%E5%BA%93/%E6%BC%8F%E6%A1%B6%E4%B8%8E%E4%BB%A4%E7%89%8C%E6%A1%B6%E9%99%90%E6%B5%81%E7%AD%96%E7%95%A5.md)
 * **3-3 网络信息安全**
   * [CSRF与click hijacking的自我理解](https://github.com/547173318/redo-golang/blob/main/doc/3-Golang%E4%B9%8B%E7%BD%91%E7%BB%9C%E7%BC%96%E7%A8%8B/3-%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8/CSRF%E4%B8%8Eclick%20hijacking.md)
   * [XSS回溯网站攻防历史](https://github.com/547173318/redo-golang/blob/main/doc/3-Golang%E4%B9%8B%E7%BD%91%E7%BB%9C%E7%BC%96%E7%A8%8B/3-%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8/XSS.md)
@@ -49,6 +50,7 @@
 ## 6.Golang之浅析常用标准库/第三方库
 * [1-命令行工具-flag包](https://github.com/547173318/redo-golang/blob/main/doc/5-Golang%E4%B9%8B%E5%B8%B8%E7%94%A8%E6%A0%87%E5%87%86%E5%BA%93/flag%E6%A0%87%E5%87%86%E5%BA%93%E4%BD%BF%E7%94%A8%E8%A7%A3%E6%9E%90.md)
 * [2-snowflake算法生成唯一ID](https://github.com/547173318/redo-golang/blob/main/doc/5-Golang%E4%B9%8B%E5%B8%B8%E7%94%A8%E6%A0%87%E5%87%86%E5%BA%93/snowFlake%E7%AE%97%E6%B3%95%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90.md)
+* [3-令牌桶限流策略源码分析.md](https://github.com/547173318/redo-golang/blob/main/doc/5-Golang%E4%B9%8B%E5%B8%B8%E7%94%A8%E6%A0%87%E5%87%86%E5%BA%93/%E6%BC%8F%E6%A1%B6%E4%B8%8E%E4%BB%A4%E7%89%8C%E6%A1%B6%E9%99%90%E6%B5%81%E7%AD%96%E7%95%A5.md)
 ## 7.Golang之面试题总结
 
 
